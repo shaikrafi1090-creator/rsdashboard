@@ -9,33 +9,41 @@ st.title("📊 CSV-Powered Sector RS Dashboard")
 st.write("Compare Relative Strength (ROC) rankings dynamically using the sectors and market caps defined in your CSV file.")
 
 # ==========================================
-# 1. INGEST DATA FROM UPLOADED CSV
+# 1. SIDEBAR FILE UPLOADER
+# ==========================================
+st.sidebar.header("1. Upload Data")
+uploaded_file = st.sidebar.file_uploader("Upload your sector CSV file", type=["csv"])
+
+if not uploaded_file:
+    st.info("👆 Please upload your CSV file in the sidebar to get started.")
+    st.stop()
+
+# ==========================================
+# 2. INGEST DATA FROM UPLOADED CSV
 # ==========================================
 @st.cache_data
-def load_csv_data():
+def load_csv_data(file):
     try:
-        # Load the exact file provided verbatim
-        df = pd.read_csv("BVVBBVBV (7).csv")
-        
+        df = pd.read_csv(file)
         # Clean the text columns to ensure smooth filtering
         df['sector'] = df['sector'].astype(str).str.strip().str.title()
         df['Symbol'] = df['Symbol'].astype(str).str.strip().str.upper()
         df['marketcapname'] = df['marketcapname'].astype(str).str.strip().str.title()
-        
         return df
-    except FileNotFoundError:
+    except Exception as e:
+        st.error(f"Error reading file: {e}")
         return pd.DataFrame()
 
-master_df = load_csv_data()
+master_df = load_csv_data(uploaded_file)
 
 if master_df.empty:
-    st.error('🚨 Could not find the file named "BVVBBVBV (7).csv". Please ensure it is saved in the exact same folder as this Python script.')
+    st.error('🚨 Could not read the data. Please ensure it is a valid CSV file.')
     st.stop()
 
 # ==========================================
-# 2. SIDEBAR FILTERS (Populated by CSV)
+# 3. SIDEBAR FILTERS (Populated by CSV)
 # ==========================================
-st.sidebar.header("Dashboard Configuration")
+st.sidebar.header("2. Dashboard Configuration")
 
 # Dynamically pull unique sectors from the CSV
 available_sectors = sorted(master_df['sector'].unique())
@@ -59,7 +67,7 @@ if not active_symbols:
     st.stop()
 
 # ==========================================
-# 3. DATA FETCHING ENGINE
+# 4. DATA FETCHING ENGINE
 # ==========================================
 @st.cache_data(ttl=3600)
 def fetch_sector_data(symbols, lookback_days):
@@ -102,7 +110,7 @@ def fetch_sector_data(symbols, lookback_days):
     return pd.DataFrame(data).dropna()
 
 # ==========================================
-# 4. DASHBOARD RENDERING
+# 5. DASHBOARD RENDERING
 # ==========================================
 with st.spinner(f"Fetching market data and calculating {lookback}-day ROC for {len(active_symbols)} stocks..."):
     df = fetch_sector_data(active_symbols, lookback)
