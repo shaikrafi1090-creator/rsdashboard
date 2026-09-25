@@ -15,7 +15,7 @@ st.sidebar.header("1. Upload Data")
 uploaded_file = st.sidebar.file_uploader("Upload your sector CSV file", type=["csv"])
 
 if not uploaded_file:
-    st.info("👆 Please drag and drop your CSV file (e.g., 'BVVBBVBV (7)_2.csv') into the sidebar to get started.")
+    st.info("👆 Please drag and drop your CSV file into the sidebar to get started.")
     st.stop()
 
 # ==========================================
@@ -26,7 +26,6 @@ def load_csv_data(file):
     try:
         df = pd.read_csv(file)
         # Clean the text columns to ensure smooth filtering
-        # Modify column names below if your CSV headers are spelled differently
         if 'sector' in df.columns:
             df['sector'] = df['sector'].astype(str).str.strip().str.title()
         if 'Symbol' in df.columns:
@@ -49,18 +48,22 @@ if master_df.empty or 'Symbol' not in master_df.columns:
 # ==========================================
 st.sidebar.header("2. Dashboard Configuration")
 
-# Sector Filter (if sector column exists)
+# Sector Filter (Safely handling blank rows)
 if 'sector' in master_df.columns:
-    available_sectors = sorted(master_df['sector'].unique())
+    clean_sectors = master_df['sector'].dropna().astype(str).unique()
+    available_sectors = sorted(clean_sectors)
+    
     selected_sector = st.sidebar.selectbox("Select Sector to Analyze", available_sectors)
     filtered_df = master_df[master_df['sector'] == selected_sector]
 else:
     selected_sector = "All Data"
     filtered_df = master_df
 
-# Market Cap Filter (if marketcapname column exists)
+# Market Cap Filter (Safely handling blank rows)
 if 'marketcapname' in master_df.columns:
-    available_mcaps = ["All"] + sorted(master_df['marketcapname'].unique().tolist())
+    clean_mcaps = master_df['marketcapname'].dropna().astype(str).unique()
+    available_mcaps = ["All"] + sorted(clean_mcaps)
+    
     selected_mcap = st.sidebar.selectbox("Filter by Market Cap", available_mcaps)
     if selected_mcap != "All":
         filtered_df = filtered_df[filtered_df['marketcapname'] == selected_mcap]
@@ -128,6 +131,7 @@ if not df.empty:
         df["Score"] = 50.0
 
     # Merge back original stock names if the column exists
+    # Make sure to look for 'Stock Name' based on your CSV's exact spelling
     if 'Stock Name' in master_df.columns:
         df = df.merge(master_df[['Symbol', 'Stock Name']], on='Symbol', how='left')
         display_cols = ["Symbol", "Stock Name", "Current Price (₹)", "ROC (%)", "Score"]
